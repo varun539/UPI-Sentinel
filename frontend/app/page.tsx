@@ -388,8 +388,15 @@ export default function Dashboard() {
             <p className="page-description">Governed intelligence across UPI transactions, users, merchants and suspicious networks.</p>
           </div>
           <div className="topbar-actions">
-            <div className="connection"><span className={`connection-dot ${apiOnline ? "online" : "offline"}`} />
-              {apiOnline ? "INTELLIGENCE ONLINE" : "CONNECTING"}</div>
+            <div className="connection">
+              <span className={`connection-dot ${apiOnline ? "online" : "offline"}`} />
+              <div className="connection-copy">
+                <div>{apiOnline ? "INTELLIGENCE ONLINE" : "CONNECTING"}</div>
+                {apiOnline && (
+                  <small>First request may take a few seconds on the free-tier deployment.</small>
+                )}
+              </div>
+            </div>
             <button className="refresh-button" onClick={() => loadDashboard(true)} disabled={refreshing}>
               {refreshing ? "↻ Syncing..." : "↻ Refresh"}
             </button>
@@ -611,6 +618,20 @@ export default function Dashboard() {
       </section>
 
       <style jsx>{`
+        .connection-copy {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .connection-copy small {
+          color: rgba(255,255,255,0.28);
+          font-size: 7px;
+          line-height: 1.2;
+          letter-spacing: .02em;
+          white-space: nowrap;
+        }
+
         .source-card {
           width: 100%;
           text-align: left;
