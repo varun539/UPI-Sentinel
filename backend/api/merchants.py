@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
+
 BASE_DIR = Path(__file__).resolve().parents[2]
+
 DATA_FILE = (
     BASE_DIR
     / "data"
@@ -16,7 +18,6 @@ DATA_FILE = (
 
 
 def load_data():
-
     if not DATA_FILE.exists():
         raise HTTPException(
             status_code=404,
@@ -27,15 +28,20 @@ def load_data():
 
 
 def records(df):
+    """
+    Convert dataframe rows into JSON-safe dictionaries.
 
-    return (
-        df.where(
-            pd.notnull(df),
-            None,
-        )
-        .to_dict(
-            orient="records"
-        )
+    Pandas NaN values are converted to Python None so that
+    FastAPI can serialize the response as valid JSON.
+    """
+
+    safe_df = (
+        df.astype(object)
+        .where(pd.notnull(df), None)
+    )
+
+    return safe_df.to_dict(
+        orient="records"
     )
 
 
@@ -48,7 +54,6 @@ def get_merchants(
     ),
     risk_band: str | None = None,
 ):
-
     df = load_data()
 
     if risk_band:
@@ -78,7 +83,6 @@ def get_merchants(
 def get_merchant(
     merchant_id: str
 ):
-
     df = load_data()
 
     matches = df[
