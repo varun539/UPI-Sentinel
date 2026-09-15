@@ -618,18 +618,42 @@ export default function Dashboard() {
       </section>
 
       <style jsx>{`
+        .connection {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          min-width: 250px;
+        }
+
         .connection-copy {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 3px;
+        }
+
+        .connection-copy > div {
+          color: rgba(255, 255, 255, 0.55);
+          font-size: 10px;
+          font-weight: 700;
+          line-height: 1.2;
+          letter-spacing: 0.08em;
+          white-space: nowrap;
         }
 
         .connection-copy small {
-          color: rgba(255,255,255,0.28);
-          font-size: 7px;
-          line-height: 1.2;
-          letter-spacing: .02em;
+          color: rgba(255, 255, 255, 0.38);
+          font-size: 8px;
+          font-weight: 500;
+          line-height: 1.3;
+          letter-spacing: 0.01em;
           white-space: nowrap;
+        }
+
+        .connection-dot {
+          width: 7px;
+          height: 7px;
+          margin-top: 3px;
+          flex: 0 0 auto;
         }
 
         .source-card {
