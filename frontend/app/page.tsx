@@ -38,6 +38,12 @@ type UploadResult = {
   [key: string]: any;
 };
 
+type SourceName =
+  | "UPI Transactions"
+  | "KYC Records"
+  | "Merchant Master"
+  | "Chargebacks";
+
 const navItems = [
   { icon: "⌂", label: "Dashboard", href: "/" },
   { icon: "⚠", label: "Investigations", href: "/investigations" },
@@ -97,7 +103,12 @@ export default function Dashboard() {
   const [uploadState, setUploadState] = useState<"idle" | "ready" | "uploading" | "success" | "error">("idle");
   const [uploadMessage, setUploadMessage] = useState("");
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
-  const [sourceRows, setSourceRows] = useState<Record<string, number>>({});
+  const [sourceRows, setSourceRows] = useState<Record<SourceName, number>>({
+    "UPI Transactions": 0,
+    "KYC Records": 0,
+    "Merchant Master": 0,
+    "Chargebacks": 0,
+  });
 
   async function loadDashboard(showRefresh = false) {
     if (showRefresh) setRefreshing(true);
@@ -174,7 +185,11 @@ export default function Dashboard() {
     }));
   }, [summary, transactions]);
 
-  const sources = [
+  const sources: Array<{
+    name: SourceName;
+    icon: string;
+    detail: string;
+  }> = [
     { name: "UPI Transactions", icon: "↔", detail: "Cleaned, validated and scored through the Sentinel pipeline." },
     { name: "KYC Records", icon: "◉", detail: "Identity fields validated and canonicalized." },
     { name: "Merchant Master", icon: "▣", detail: "Merchant identifiers normalized for entity matching." },
