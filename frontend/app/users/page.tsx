@@ -260,8 +260,8 @@ export default function UsersPage() {
               </div>
             ) : (
               <>
-                <div className="data-table user-table">
-                  <div className="data-row data-header">
+                <div className="user-table user-table-fixed">
+                  <div className="user-table-header">
                     <span>USER</span>
                     <span>RISK SCORE</span>
                     <span>BAND</span>
@@ -274,7 +274,7 @@ export default function UsersPage() {
                     const score = row.risk_score;
                     return (
                       <button
-                        className="data-row user-row"
+                        className="user-table-row"
                         key={row.user_id || i}
                         onClick={() => setSelected(row)}
                       >
@@ -370,6 +370,128 @@ export default function UsersPage() {
           </aside>
         </div>
       )}
+        <style jsx>{`
+          .user-table-fixed {
+            width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 14px;
+            background: rgba(8, 12, 18, 0.55);
+          }
+
+          .user-table-header,
+          .user-table-row {
+            display: grid;
+            grid-template-columns: minmax(190px, 1.55fr) minmax(150px, 1.15fr) minmax(110px, .8fr) minmax(90px, .65fr) minmax(120px, .85fr);
+            align-items: center;
+            column-gap: 18px;
+            width: 100%;
+            min-width: 780px;
+            box-sizing: border-box;
+          }
+
+          .user-table-header {
+            min-height: 48px;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+            color: #718096;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+          }
+
+          .user-table-row {
+            min-height: 72px;
+            padding: 12px 20px;
+            border: 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+            transition: background .18s ease;
+          }
+
+          .user-table-row:last-child { border-bottom: 0; }
+          .user-table-row:hover { background: rgba(74, 222, 128, 0.055); }
+
+          .user-table-row:focus-visible {
+            outline: 2px solid rgba(74, 222, 128, .65);
+            outline-offset: -2px;
+          }
+
+          .user-table-row > span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .user-table-row .user-id-cell {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-width: 0;
+          }
+
+          .user-table-row .user-id-cell .mono {
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .user-table-row .risk-score-cell {
+            display: grid;
+            grid-template-columns: minmax(65px, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+          }
+
+          .user-table-row .risk-bar {
+            display: block;
+            width: 100%;
+            height: 5px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, .13);
+          }
+
+          .user-table-row .risk-bar > span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: currentColor;
+            opacity: .9;
+          }
+
+          .user-table-row .risk-score-cell strong {
+            min-width: 36px;
+            text-align: right;
+            color: #d7dee8;
+            font-size: 12px;
+          }
+
+          .user-table-row .status-pill {
+            display: inline-flex;
+            width: fit-content;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+          }
+
+          .user-table-row .mono {
+            font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px;
+          }
+
+          @media (max-width: 900px) {
+            .user-table-fixed { overflow-x: auto; }
+          }
+        `}</style>
+
     </main>
   );
 }

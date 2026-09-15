@@ -304,8 +304,8 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <>
-                <div className="data-table transaction-table">
-                  <div className="data-row data-header">
+                <div className="transaction-table transaction-table-fixed">
+                  <div className="transaction-table-header">
                     <span>TRANSACTION</span>
                     <span>USER</span>
                     <span>MERCHANT</span>
@@ -318,7 +318,7 @@ export default function TransactionsPage() {
                     const band = String(row.risk_band || "").toUpperCase();
                     return (
                       <button
-                        className="data-row transaction-row"
+                        className="transaction-table-row"
                         key={row.txn_id || index}
                         onClick={() => setSelected(row)}
                       >
@@ -409,6 +409,89 @@ export default function TransactionsPage() {
           </aside>
         </div>
       )}
+        <style jsx>{`
+          .transaction-table-fixed {
+            width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 14px;
+            background: rgba(8, 12, 18, 0.55);
+          }
+          .transaction-table-header,
+          .transaction-table-row {
+            display: grid;
+            grid-template-columns: minmax(190px, 1.35fr) minmax(120px, .85fr) minmax(120px, .85fr) minmax(125px, .8fr) minmax(105px, .7fr) minmax(105px, .7fr);
+            align-items: center;
+            column-gap: 18px;
+            width: 100%;
+            min-width: 900px;
+            box-sizing: border-box;
+          }
+          .transaction-table-header {
+            min-height: 48px;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+            color: #718096;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+          }
+          .transaction-table-row {
+            min-height: 68px;
+            padding: 12px 20px;
+            border: 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+            transition: background .18s ease;
+          }
+          .transaction-table-row:last-child { border-bottom: 0; }
+          .transaction-table-row:hover { background: rgba(74, 222, 128, 0.055); }
+          .transaction-table-row:focus-visible {
+            outline: 2px solid rgba(74, 222, 128, .65);
+            outline-offset: -2px;
+          }
+          .transaction-table-row > span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .transaction-table-row .txn-id-cell,
+          .transaction-table-row .mono {
+            font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px;
+          }
+          .transaction-table-row .txn-id-cell { color: #79e6a7; }
+          .transaction-table-row .amount-cell { color: #d7dee8; font-weight: 650; }
+          .transaction-table-row .status-pill {
+            display: inline-flex;
+            width: fit-content;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+          }
+          .transaction-table-row .risk-inline {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            overflow: visible;
+          }
+          .transaction-table-row .risk-inline small {
+            font-size: 9px;
+            font-weight: 750;
+            letter-spacing: .08em;
+          }
+          @media (max-width: 900px) {
+            .transaction-table-fixed { overflow-x: auto; }
+          }
+        `}</style>
+
     </main>
   );
 }
