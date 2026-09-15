@@ -9,6 +9,8 @@ from backend.api.users import router as users_router
 from backend.api.merchants import router as merchants_router
 from backend.api.investigations import router as investigations_router
 from backend.api.networks import router as networks_router
+from backend.api.agent import router as agent_router
+from backend.api.upload import router as upload_router
 
 
 app = FastAPI(
@@ -95,3 +97,6 @@ def health():
         "status": "healthy",
         "service": "upi-sentinel-api",
     }
+
+app.include_router(agent_router, prefix="/api/agent", tags=["AI Investigator"])
+app.include_router(upload_router, prefix="/api")

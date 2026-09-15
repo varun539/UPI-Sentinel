@@ -1,29 +1,45 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const API = "/api/backend";
 
 type Investigation = {
-  priority_rank: number;
-  entity_type: string;
-  entity_id: string;
-  risk_score: number;
-  risk_band: string;
-  reasons: string;
+  priority_rank?: number;
+  entity_type?: string;
+  entity_id?: string;
+  risk_score?: number;
+  risk_band?: string;
+  reasons?: string;
+  [key: string]: unknown;
 };
 
-function riskClass(band: string) {
-  switch (band) {
-    case "CRITICAL":
-      return "risk-critical";
-    case "HIGH":
-      return "risk-high";
-    case "MEDIUM":
-      return "risk-medium";
-    default:
-      return "risk-low";
-  }
+const navItems = [
+  { icon: "⌂", label: "Dashboard", href: "/" },
+  { icon: "⚠", label: "Investigations", href: "/investigations" },
+  { icon: "↔", label: "Transactions", href: "/transactions" },
+  { icon: "◉", label: "Users", href: "/users" },
+  { icon: "▣", label: "Merchants", href: "/merchants" },
+  { icon: "⌁", label: "Networks", href: "/networks" },
+];
+
+function formatNumber(value?: number) {
+  if (value === undefined || value === null || !Number.isFinite(value)) return "—";
+  return value.toLocaleString("en-IN");
+}
+
+function formatScore(value?: number) {
+  if (value === undefined || value === null || !Number.isFinite(value)) return "—";
+  return value.toFixed(2);
+}
+
+function riskClass(risk?: string) {
+  const value = String(risk || "").toUpperCase();
+  if (value === "CRITICAL") return "risk-critical";
+  if (value === "HIGH") return "risk-high";
+  if (value === "MEDIUM") return "risk-medium";
+  return "risk-low";
 }
 
 function formatReason(reason: string) {
@@ -33,124 +49,141 @@ function formatReason(reason: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function reasonList(value?: string) {
+  if (!value) return [];
+  return value.split("|").map((item) => item.trim()).filter(Boolean);
+}
+
 export default function InvestigationsPage() {
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
+  const [selected, setSelected] = useState<Investigation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("ALL");
-  const [entityFilter, setEntityFilter] = useState("ALL");
-  const [selected, setSelected] = useState<Investigation | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadInvestigations() {
       try {
-        setLoading(true);
-
-        const response = await fetch(
-          `${API}/investigations?limit=346`,
-          { cache: "no-store" }
-        );
+        const response = await fetch(`${API}/investigations?limit=500`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
 
         if (!response.ok) {
-          throw new Error("Investigation API failed");
+          throw new Error(`Investigation API failed: ${response.status}`);
         }
 
         const data = await response.json();
-        setInvestigations(data.investigations || []);
+        const items = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.items)
+              ? data.items
+              : Array.isArray(data?.investigations)
+                ? data.investigations
+                : [];
+
+        setInvestigations(items);
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         console.error(err);
-        setError("Unable to load investigation queue.");
+        setError("Unable to load the investigation queue.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     loadInvestigations();
+    return () => controller.abort();
   }, []);
 
   const filteredInvestigations = useMemo(() => {
-    const query = search.toLowerCase().trim();
+    const query = search.trim().toLowerCase();
 
     return investigations.filter((item) => {
-      const matchesSearch =
-        !query ||
-        item.entity_id.toLowerCase().includes(query) ||
-        item.entity_type.toLowerCase().includes(query) ||
-        item.reasons.toLowerCase().includes(query);
+      const searchable = [
+        item.entity_type,
+        item.entity_id,
+        item.risk_band,
+        item.reasons,
+        item.priority_rank,
+      ]
+        .filter((value) => value !== undefined && value !== null)
+        .join(" ")
+        .toLowerCase();
 
+      const matchesSearch = !query || searchable.includes(query);
       const matchesRisk =
-        riskFilter === "ALL" || item.risk_band === riskFilter;
+        riskFilter === "ALL" ||
+        String(item.risk_band || "").toUpperCase() === riskFilter;
 
-      const matchesEntity =
-        entityFilter === "ALL" || item.entity_type === entityFilter;
-
-      return matchesSearch && matchesRisk && matchesEntity;
+      return matchesSearch && matchesRisk;
     });
-  }, [investigations, search, riskFilter, entityFilter]);
-
-  const highCount = investigations.filter(
-    (item) => item.risk_band === "HIGH"
-  ).length;
+  }, [investigations, search, riskFilter]);
 
   const criticalCount = investigations.filter(
-    (item) => item.risk_band === "CRITICAL"
+    (item) => String(item.risk_band || "").toUpperCase() === "CRITICAL"
   ).length;
 
+  const highCount = investigations.filter(
+    (item) => String(item.risk_band || "").toUpperCase() === "HIGH"
+  ).length;
+
+  const mediumPlusCount = investigations.filter((item) => {
+    const score = Number(item.risk_score);
+    return Number.isFinite(score) && score >= 50;
+  }).length;
+
   return (
-    <main className="dashboard-shell">
+    <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">U</div>
+          <div className="brand-mark"><span>U</span></div>
           <div>
-            <div className="brand-name">UPI Sentinel</div>
-            <div className="brand-subtitle">Fraud Intelligence</div>
+            <div className="brand-name">UPI SENTINEL</div>
+            <div className="brand-subtitle">FRAUD INTELLIGENCE</div>
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          <a href="/" className="nav-item">
-            <span>⌂</span>
-            Dashboard
-          </a>
+        <div className="nav-section">
+          <div className="nav-title">MONITORING</div>
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              className={`nav-item ${item.label === "Investigations" ? "active" : ""}`}
+              href={item.href}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+              {item.label === "Investigations" && investigations.length > 0 && (
+                <span className="nav-badge">{investigations.length}</span>
+              )}
+            </Link>
+          ))}
+        </div>
 
-          <a href="/investigations" className="nav-item active">
-            <span>⌕</span>
-            Investigations
-          </a>
+        <div className="nav-section">
+          <div className="nav-title">INTELLIGENCE</div>
+          <Link className="nav-item" href="/ai-investigator">
+            <span className="nav-icon">✦</span>
+            <span>AI Investigator</span>
+            <span className="ai-badge">AI</span>
+          </Link>
+        </div>
 
-          <a href="/" className="nav-item">
-            <span>⇄</span>
-            Transactions
-          </a>
-
-          <a href="/" className="nav-item">
-            <span>◎</span>
-            Users
-          </a>
-
-          <a href="/" className="nav-item">
-            <span>▣</span>
-            Merchants
-          </a>
-
-          <a href="/" className="nav-item">
-            <span>⌘</span>
-            Networks
-          </a>
-
-          <div className="nav-section-title">INTELLIGENCE</div>
-
-          <a href="/" className="nav-item">
-            <span>✦</span>
-            AI Investigator
-          </a>
-        </nav>
-
-        <div className="sidebar-footer">
+        <div className="sidebar-bottom">
           <div className="system-status">
-            <span className="status-dot" />
-            Intelligence Engine Online
+            <span className={`status-dot ${error ? "offline" : ""}`} />
+            <div>
+              <div className="system-title">
+                {error ? "Intelligence engine issue" : "Intelligence engine online"}
+              </div>
+              <div className="system-subtitle">UPI Sentinel investigation layer</div>
+            </div>
           </div>
           <div className="version">UPI Sentinel v0.2.0</div>
         </div>
@@ -159,323 +192,256 @@ export default function InvestigationsPage() {
       <section className="main-content">
         <header className="topbar">
           <div>
-            <div className="eyebrow">FRAUD OPERATIONS</div>
+            <div className="breadcrumb">SENTINEL / <span>INVESTIGATIONS</span></div>
             <h1>Investigation Center</h1>
-            <p>
-              Prioritized entities requiring investigator review.
+            <p className="page-description">
+              Prioritize users, transactions and merchants that warrant analyst review.
             </p>
           </div>
-
-          <div className="topbar-status">
-            <span className="status-dot" />
-            API Connected
+          <div className="topbar-actions">
+            <div className="connection">
+              <span className={`connection-dot ${error ? "offline" : ""}`} />
+              {loading ? "LOADING QUEUE" : error ? "API ERROR" : "API CONNECTED"}
+            </div>
           </div>
         </header>
 
-        <section className="stats-grid investigation-stats">
-          <div className="stat-card">
-            <div className="stat-label">TOTAL CANDIDATES</div>
-            <div className="stat-value">{investigations.length}</div>
-            <div className="stat-meta">Prioritized investigation queue</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-label">HIGH RISK</div>
-            <div className="stat-value">{highCount}</div>
-            <div className="stat-meta">Entities requiring review</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-label">CRITICAL</div>
-            <div className="stat-value">{criticalCount}</div>
-            <div className="stat-meta">Highest-priority entities</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-label">VISIBLE RESULTS</div>
-            <div className="stat-value">
-              {filteredInvestigations.length}
-            </div>
-            <div className="stat-meta">After active filters</div>
-          </div>
-        </section>
-
-        <section className="panel investigation-panel">
-          <div className="panel-header">
-            <div>
-              <div className="panel-kicker">INVESTIGATION QUEUE</div>
-              <h2>Suspicious entities</h2>
+        <div className="dashboard-content">
+          <section className="stats-grid investigation-stats">
+            <div className="stat-card">
+              <div className="stat-top"><div>
+                <div className="stat-label">INVESTIGATION QUEUE</div>
+                <div className="stat-value">{formatNumber(investigations.length)}</div>
+              </div><div className="stat-icon">⚠</div></div>
+              <div className="stat-bottom"><span className="stat-live">● LIVE</span><span>Risk-scored candidates</span></div>
             </div>
 
-            <div className="queue-description">
-              Risk scores combine behavioral, network and anomaly signals.
-            </div>
-          </div>
-
-          <div className="filter-bar">
-            <div className="search-box">
-              <span>⌕</span>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search entity, ID or reason..."
-              />
+            <div className="stat-card">
+              <div className="stat-top"><div>
+                <div className="stat-label">CRITICAL</div>
+                <div className="stat-value">{formatNumber(criticalCount)}</div>
+              </div><div className="stat-icon">!</div></div>
+              <div className="stat-bottom"><span className="stat-live">● PRIORITY</span><span>Score above 75</span></div>
             </div>
 
-            <select
-              value={entityFilter}
-              onChange={(event) => setEntityFilter(event.target.value)}
-            >
-              <option value="ALL">All entities</option>
-              <option value="USER">Users</option>
-              <option value="MERCHANT">Merchants</option>
-              <option value="TRANSACTION">Transactions</option>
-            </select>
-
-            <select
-              value={riskFilter}
-              onChange={(event) => setRiskFilter(event.target.value)}
-            >
-              <option value="ALL">All risk levels</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </div>
-
-          {loading && (
-            <div className="empty-state">
-              Loading investigation intelligence...
+            <div className="stat-card">
+              <div className="stat-top"><div>
+                <div className="stat-label">HIGH RISK</div>
+                <div className="stat-value">{formatNumber(highCount)}</div>
+              </div><div className="stat-icon">↑</div></div>
+              <div className="stat-bottom"><span className="stat-live">● REVIEW</span><span>High-risk candidates</span></div>
             </div>
-          )}
 
-          {error && (
-            <div className="empty-state error-state">
-              {error}
+            <div className="stat-card">
+              <div className="stat-top"><div>
+                <div className="stat-label">MEDIUM+</div>
+                <div className="stat-value">{formatNumber(mediumPlusCount)}</div>
+              </div><div className="stat-icon">◎</div></div>
+              <div className="stat-bottom"><span className="stat-live">● SIGNAL</span><span>Score 50 or above</span></div>
             </div>
-          )}
+          </section>
 
-          {!loading && !error && (
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>PRIORITY</th>
-                    <th>ENTITY</th>
-                    <th>ENTITY ID</th>
-                    <th>RISK SCORE</th>
-                    <th>RISK BAND</th>
-                    <th>WHY FLAGGED</th>
-                    <th />
-                  </tr>
-                </thead>
+          <section className="panel investigation-panel">
+            <div className="panel-header">
+              <div>
+                <div className="panel-kicker">RISK OPERATIONS</div>
+                <h2>Priority Investigation Queue</h2>
+              </div>
+              <div className="queue-description">
+                Candidates are ranked by unified risk score for analyst review.
+              </div>
+            </div>
 
-                <tbody>
-                  {filteredInvestigations.map((item) => (
-                    <tr
-                      key={`${item.entity_type}-${item.entity_id}`}
-                      onClick={() => setSelected(item)}
-                      className="investigation-row"
-                    >
-                      <td>
-                        <span className="priority-number">
-                          #{item.priority_rank}
-                        </span>
-                      </td>
+            <div className="filter-bar">
+              <div className="search-box">
+                <span>⌕</span>
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search entity, ID, risk level or signal..."
+                  aria-label="Search investigation queue"
+                />
+              </div>
+              <select
+                value={riskFilter}
+                onChange={(event) => setRiskFilter(event.target.value)}
+                aria-label="Filter by risk level"
+              >
+                <option value="ALL">All risk levels</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
 
-                      <td>
-                        <span className="entity-type">
-                          {item.entity_type}
-                        </span>
-                      </td>
+            {loading && <div className="empty-state">Loading investigation intelligence...</div>}
+            {error && !loading && <div className="empty-state error-state">{error}</div>}
 
-                      <td>
-                        <span className="entity-id">
-                          {item.entity_id}
-                        </span>
-                      </td>
+            {!loading && !error && filteredInvestigations.length === 0 && (
+              <div className="empty-state">No investigation candidates match the current filters.</div>
+            )}
 
-                      <td>
-                        <div className="risk-score-cell">
-                          <strong>
-                            {item.risk_score.toFixed(2)}
-                          </strong>
-                          <div className="mini-risk-bar">
-                            <span
-                              style={{
-                                width: `${Math.min(
-                                  item.risk_score,
-                                  100
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-
-                      <td>
-                        <span
-                          className={`risk-pill ${riskClass(
-                            item.risk_band
-                          )}`}
-                        >
-                          {item.risk_band}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="reason-list">
-                          {item.reasons
-                            .split("|")
-                            .slice(0, 2)
-                            .map((reason) => (
-                              <span key={reason}>
-                                {formatReason(reason)}
-                              </span>
-                            ))}
-                        </div>
-                      </td>
-
-                      <td>
-                        <button
-                          className="view-button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelected(item);
-                          }}
-                        >
-                          View →
-                        </button>
-                      </td>
+            {!loading && !error && filteredInvestigations.length > 0 && (
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>PRIORITY</th>
+                      <th>ENTITY</th>
+                      <th>ENTITY ID</th>
+                      <th>RISK SCORE</th>
+                      <th>RISK BAND</th>
+                      <th>REASONS</th>
+                      <th>ACTION</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredInvestigations.map((item, index) => {
+                      const score = Number(item.risk_score);
+                      const safeScore = Number.isFinite(score) ? score : 0;
 
-              {filteredInvestigations.length === 0 && (
-                <div className="empty-state">
-                  No investigation candidates match the current filters.
-                </div>
-              )}
+                      return (
+                        <tr
+                          key={`${item.entity_type || "ENTITY"}-${item.entity_id || index}-${item.priority_rank || index}`}
+                          className="investigation-row"
+                          onClick={() => setSelected(item)}
+                        >
+                          <td><span className="priority-number">#{formatNumber(item.priority_rank ?? index + 1)}</span></td>
+                          <td><span className="entity-type">{String(item.entity_type || "UNKNOWN")}</span></td>
+                          <td><code className="entity-id">{String(item.entity_id || "—")}</code></td>
+                          <td className="risk-score-cell">
+                            <strong>{formatScore(item.risk_score)}</strong>
+                            <div className="mini-risk-bar">
+                              <span style={{ width: `${Math.min(Math.max(safeScore, 0), 100)}%` }} />
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`risk-pill ${riskClass(item.risk_band)}`}>
+                              {String(item.risk_band || "LOW")}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="reason-list">
+                              {reasonList(item.reasons).slice(0, 3).map((reason) => (
+                                <span key={reason}>{formatReason(reason)}</span>
+                              ))}
+                            </div>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="view-button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelected(item);
+                              }}
+                            >
+                              Review
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <div className="bottom-grid">
+            <div className="panel insight-card">
+              <div className="insight-icon">⚡</div>
+              <div>
+                <h3>How to use the queue</h3>
+                <p>
+                  Start with the highest-ranked candidates, inspect the risk signals,
+                  then cross-check supporting transaction, user, merchant and network evidence.
+                </p>
+              </div>
             </div>
-          )}
-        </section>
+
+            <div className="panel insight-card">
+              <div className="insight-icon ai-icon">✦</div>
+              <div>
+                <h3>Need a faster answer?</h3>
+                <p>
+                  Use AI Investigator to ask natural-language questions and generate
+                  chart-backed analysis from the same intelligence layer.
+                </p>
+                <Link href="/ai-investigator">Open AI Investigator →</Link>
+              </div>
+            </div>
+          </div>
+
+          <footer>
+            <span>UPI Sentinel · Investigation Intelligence</span>
+            <span>Risk scores are investigative signals, not calibrated probabilities.</span>
+          </footer>
+        </div>
       </section>
 
       {selected && (
-        <div
-          className="drawer-backdrop"
-          onClick={() => setSelected(null)}
-        >
-          <aside
-            className="investigation-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="drawer-backdrop" onClick={() => setSelected(null)}>
+          <aside className="investigation-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="drawer-header">
               <div>
-                <div className="panel-kicker">
-                  INVESTIGATION CASE
-                </div>
-
-                <h2>{selected.entity_id}</h2>
-
+                <div className="panel-kicker">INVESTIGATION CASE</div>
+                <h2>{String(selected.entity_id || "—")}</h2>
                 <div className="drawer-entity-type">
-                  {selected.entity_type}
+                  {String(selected.entity_type || "UNKNOWN")} · PRIORITY #{formatNumber(selected.priority_rank)}
                 </div>
               </div>
-
               <button
+                type="button"
                 className="close-button"
                 onClick={() => setSelected(null)}
-              >
-                ×
-              </button>
+                aria-label="Close investigation"
+              >×</button>
             </div>
 
             <div className="drawer-risk">
               <div>
                 <div className="drawer-label">UNIFIED RISK SCORE</div>
-                <div className="drawer-score">
-                  {selected.risk_score.toFixed(2)}
-                </div>
+                <div className="drawer-score">{formatScore(selected.risk_score)}</div>
               </div>
-
-              <span
-                className={`risk-pill large ${riskClass(
-                  selected.risk_band
-                )}`}
-              >
-                {selected.risk_band}
+              <span className={`risk-pill large ${riskClass(selected.risk_band)}`}>
+                {String(selected.risk_band || "LOW")}
               </span>
             </div>
 
             <div className="drawer-section">
-              <div className="drawer-section-title">
-                WHY THIS ENTITY WAS FLAGGED
-              </div>
-
+              <div className="drawer-section-title">DETECTION SIGNALS</div>
               <div className="drawer-reasons">
-                {selected.reasons.split("|").map((reason) => (
-                  <div className="drawer-reason" key={reason}>
-                    <span className="reason-icon">!</span>
-                    <span>{formatReason(reason)}</span>
+                {reasonList(selected.reasons).length === 0 ? (
+                  <div className="drawer-reason">
+                    <span className="reason-icon">i</span>
+                    <span>No explicit reason codes were returned.</span>
                   </div>
-                ))}
+                ) : (
+                  reasonList(selected.reasons).map((reason) => (
+                    <div className="drawer-reason" key={reason}>
+                      <span className="reason-icon">!</span>
+                      <span>{formatReason(reason)}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             <div className="drawer-section">
-              <div className="drawer-section-title">
-                INVESTIGATION SIGNALS
-              </div>
-
-              <div className="signal-card">
-                <div className="signal-icon">◈</div>
-                <div>
-                  <strong>Behavioral Intelligence</strong>
-                  <p>
-                    Entity exhibits elevated behavioral risk
-                    signals relative to the analytical population.
-                  </p>
-                </div>
-              </div>
-
-              <div className="signal-card">
-                <div className="signal-icon">⌘</div>
-                <div>
-                  <strong>Network Intelligence</strong>
-                  <p>
-                    Entity is associated with a suspicious
-                    user-merchant network component.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="drawer-section">
-              <div className="drawer-section-title">
-                RECOMMENDED ACTION
-              </div>
-
+              <div className="drawer-section-title">INVESTIGATOR GUIDANCE</div>
               <div className="recommendation">
-                <div className="recommendation-title">
-                  Review before escalation
-                </div>
-
+                <div className="recommendation-title">Review supporting evidence</div>
                 <p>
-                  Examine KYC quality, transaction behavior,
-                  chargeback history and linked network entities
-                  before making a final determination.
+                  Examine the entity&apos;s transaction behavior and related user,
+                  merchant and network signals before making a final determination.
                 </p>
               </div>
             </div>
 
             <div className="drawer-footer">
-              <span>
-                Risk score is an investigative prioritization
-                signal, not a confirmed fraud verdict.
-              </span>
+              A queue entry is an investigative candidate, not proof of fraud.
             </div>
           </aside>
         </div>
