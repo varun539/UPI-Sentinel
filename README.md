@@ -15,7 +15,7 @@ It transforms messy UPI transaction, KYC, merchant, and chargeback data into a g
 
 ## 🌐 Live Demo
 
-### 🚀 [Open UPI Sentinel](https://upi-sentinel-ruby.vercel.app/)
+### 🚀 https://upi-sentinel-ruby.vercel.app/
 
 **Frontend:** Vercel  
 **Backend:** FastAPI on Render
