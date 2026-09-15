@@ -1,0 +1,386 @@
+[
+  {
+    "dataset": "track1_upi_transactions.csv",
+    "rows": 20400,
+    "columns": 8,
+    "duplicate_rows": 400,
+    "columns_detail": [
+      {
+        "name": "txn_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 20000,
+        "duplicate_value_count": 400
+      },
+      {
+        "name": "timestamp",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 19083,
+        "duplicate_value_count": 1317
+      },
+      {
+        "name": "user_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 17878,
+        "duplicate_value_count": 2522
+      },
+      {
+        "name": "merchant_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 8051,
+        "duplicate_value_count": 12349
+      },
+      {
+        "name": "amount",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 19900,
+        "duplicate_value_count": 500
+      },
+      {
+        "name": "utr",
+        "dtype": "str",
+        "missing_count": 1024,
+        "missing_pct": 5.02,
+        "unique_count": 19000,
+        "duplicate_value_count": 1399
+      },
+      {
+        "name": "mcc",
+        "dtype": "float64",
+        "missing_count": 2926,
+        "missing_pct": 14.34,
+        "unique_count": 5,
+        "duplicate_value_count": 20394
+      },
+      {
+        "name": "status",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 14,
+        "duplicate_value_count": 20386
+      }
+    ]
+  },
+  {
+    "dataset": "track1_kyc_records.csv",
+    "rows": 36400,
+    "columns": 12,
+    "duplicate_rows": 278,
+    "columns_detail": [
+      {
+        "name": "user_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 32165,
+        "duplicate_value_count": 4235
+      },
+      {
+        "name": "full_name",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 33921,
+        "duplicate_value_count": 2479
+      },
+      {
+        "name": "pan",
+        "dtype": "str",
+        "missing_count": 1896,
+        "missing_pct": 5.21,
+        "unique_count": 33164,
+        "duplicate_value_count": 3235
+      },
+      {
+        "name": "aadhaar",
+        "dtype": "str",
+        "missing_count": 2664,
+        "missing_pct": 7.32,
+        "unique_count": 32093,
+        "duplicate_value_count": 4306
+      },
+      {
+        "name": "date_of_birth",
+        "dtype": "str",
+        "missing_count": 2944,
+        "missing_pct": 8.09,
+        "unique_count": 29284,
+        "duplicate_value_count": 7115
+      },
+      {
+        "name": "city",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 41,
+        "duplicate_value_count": 36359
+      },
+      {
+        "name": "state",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 9,
+        "duplicate_value_count": 36391
+      },
+      {
+        "name": "monthly_income",
+        "dtype": "str",
+        "missing_count": 2933,
+        "missing_pct": 8.06,
+        "unique_count": 26034,
+        "duplicate_value_count": 10365
+      },
+      {
+        "name": "occupation",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 9,
+        "duplicate_value_count": 36391
+      },
+      {
+        "name": "signup_timestamp",
+        "dtype": "str",
+        "missing_count": 2910,
+        "missing_pct": 7.99,
+        "unique_count": 14607,
+        "duplicate_value_count": 21792
+      },
+      {
+        "name": "kyc_status",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 16,
+        "duplicate_value_count": 36384
+      },
+      {
+        "name": "risk_segment",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 12,
+        "duplicate_value_count": 36388
+      }
+    ]
+  },
+  {
+    "dataset": "track1_merchants_master.csv",
+    "rows": 6210,
+    "columns": 11,
+    "duplicate_rows": 12,
+    "columns_detail": [
+      {
+        "name": "merchant_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 5083,
+        "duplicate_value_count": 1127
+      },
+      {
+        "name": "merchant_name",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 5732,
+        "duplicate_value_count": 478
+      },
+      {
+        "name": "mcc",
+        "dtype": "str",
+        "missing_count": 514,
+        "missing_pct": 8.28,
+        "unique_count": 42,
+        "duplicate_value_count": 6167
+      },
+      {
+        "name": "merchant_category",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 82,
+        "duplicate_value_count": 6128
+      },
+      {
+        "name": "business_type",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 14,
+        "duplicate_value_count": 6196
+      },
+      {
+        "name": "city",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 41,
+        "duplicate_value_count": 6169
+      },
+      {
+        "name": "state",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 9,
+        "duplicate_value_count": 6201
+      },
+      {
+        "name": "onboarding_date",
+        "dtype": "str",
+        "missing_count": 499,
+        "missing_pct": 8.04,
+        "unique_count": 4399,
+        "duplicate_value_count": 1810
+      },
+      {
+        "name": "settlement_account",
+        "dtype": "str",
+        "missing_count": 2451,
+        "missing_pct": 39.47,
+        "unique_count": 3548,
+        "duplicate_value_count": 2661
+      },
+      {
+        "name": "merchant_status",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 15,
+        "duplicate_value_count": 6195
+      },
+      {
+        "name": "declared_avg_ticket_size",
+        "dtype": "str",
+        "missing_count": 371,
+        "missing_pct": 5.97,
+        "unique_count": 5520,
+        "duplicate_value_count": 689
+      }
+    ]
+  },
+  {
+    "dataset": "track1_chargebacks.json",
+    "rows": 2884,
+    "columns": 13,
+    "duplicate_rows": 84,
+    "columns_detail": [
+      {
+        "name": "complaint_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 2800,
+        "duplicate_value_count": 84
+      },
+      {
+        "name": "txn_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 2582,
+        "duplicate_value_count": 302
+      },
+      {
+        "name": "user_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 2454,
+        "duplicate_value_count": 430
+      },
+      {
+        "name": "merchant_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 2051,
+        "duplicate_value_count": 833
+      },
+      {
+        "name": "transaction_timestamp",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 1238,
+        "duplicate_value_count": 1646
+      },
+      {
+        "name": "reported_timestamp",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 1329,
+        "duplicate_value_count": 1555
+      },
+      {
+        "name": "disputed_amount",
+        "dtype": "object",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 2609,
+        "duplicate_value_count": 275
+      },
+      {
+        "name": "reason_code",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 34,
+        "duplicate_value_count": 2850
+      },
+      {
+        "name": "complaint_text",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 84,
+        "duplicate_value_count": 2800
+      },
+      {
+        "name": "resolution_status",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 13,
+        "duplicate_value_count": 2871
+      },
+      {
+        "name": "bank_response_timestamp",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 1149,
+        "duplicate_value_count": 1735
+      },
+      {
+        "name": "severity",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 16,
+        "duplicate_value_count": 2868
+      },
+      {
+        "name": "channel",
+        "dtype": "str",
+        "missing_count": 0,
+        "missing_pct": 0.0,
+        "unique_count": 8,
+        "duplicate_value_count": 2876
+      }
+    ]
+  }
+]

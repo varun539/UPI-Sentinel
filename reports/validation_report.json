@@ -1,0 +1,135 @@
+{
+  "transactions": {
+    "rows": 20000,
+    "unique_txn_ids": 20000,
+    "duplicate_txn_ids": 0,
+    "missing_txn_id": 0,
+    "missing_user_id": 0,
+    "missing_merchant_id": 0,
+    "missing_utr": 1000,
+    "duplicate_utr_count": 0,
+    "missing_mcc": 2872,
+    "missing_timestamp": 0,
+    "missing_amount": 0,
+    "negative_amount": 420,
+    "zero_amount": 0,
+    "amount_min": -24847.86,
+    "amount_max": 24998.12,
+    "amount_median": 10764.895,
+    "timestamp_min": "2026-01-01T00:00:00",
+    "timestamp_max": "2026-12-03T23:37:52",
+    "status_distribution": {
+      "SUCCESS": 17053,
+      "FAILED": 1955,
+      "PENDING": 992
+    },
+    "unique_mcc_count": 5
+  },
+  "kyc": {
+    "rows": 35934,
+    "unique_user_ids": 30598,
+    "duplicate_user_ids": 5336,
+    "missing_user_id": 0,
+    "missing_pan": 1876,
+    "invalid_pan_format": 2615,
+    "missing_aadhaar": 2625,
+    "masked_aadhaar": 2881,
+    "invalid_aadhaar_format": 3228,
+    "missing_date_of_birth": 3643,
+    "missing_income": 4648,
+    "negative_income": 1440,
+    "zero_income": 0,
+    "income_min": -300000.0,
+    "income_max": 235221.0,
+    "kyc_status_distribution": {
+      "VERIFIED": 27395,
+      "PENDING": 3455,
+      "REJECTED": 2608,
+      "IN_PROGRESS": 977,
+      "UNDER_REVIEW": 975,
+      "FAILED": 524
+    },
+    "risk_segment_distribution": {
+      "LOW": 20716,
+      "MEDIUM": 9708,
+      "HIGH": 3677,
+      "UNKNOWN": 1833
+    }
+  },
+  "merchants": {
+    "rows": 6190,
+    "unique_merchant_ids": 4480,
+    "duplicate_merchant_ids": 1710,
+    "missing_merchant_id": 0,
+    "missing_mcc": 691,
+    "missing_onboarding_date": 499,
+    "missing_settlement_account": 2443,
+    "missing_declared_avg_ticket_size": 370,
+    "negative_declared_avg_ticket_size": 501,
+    "ticket_size_min": -12917.19,
+    "ticket_size_max": 23536.65,
+    "merchant_status_distribution": {
+      "ACTIVE": 5018,
+      "INACTIVE": 759,
+      "SUSPENDED": 285,
+      "HOLD": 80,
+      "BLOCKED": 48
+    },
+    "merchant_category_count": 82
+  },
+  "chargebacks": {
+    "rows": 2800,
+    "unique_complaint_ids": 2800,
+    "duplicate_complaint_ids": 0,
+    "missing_complaint_id": 0,
+    "missing_txn_id": 77,
+    "missing_user_id": 0,
+    "missing_merchant_id": 0,
+    "missing_disputed_amount": 179,
+    "negative_disputed_amount": 220,
+    "total_disputed_amount": 5633422.75308,
+    "transaction_timestamp_missing": 230,
+    "reported_timestamp_missing": 203,
+    "bank_response_timestamp_missing": 701,
+    "reported_before_transaction": 211,
+    "bank_response_before_reported": 108,
+    "severity_distribution": {
+      "MEDIUM": 1024,
+      "LOW": 959,
+      "HIGH": 604,
+      "CRITICAL": 213
+    }
+  },
+  "relationships": {
+    "transaction_to_kyc": {
+      "source_rows_with_key": 20000,
+      "matched_rows": 5592,
+      "unmatched_rows": 14408,
+      "match_rate_pct": 27.96
+    },
+    "transaction_to_merchant": {
+      "source_rows_with_key": 20000,
+      "matched_rows": 9275,
+      "unmatched_rows": 10725,
+      "match_rate_pct": 46.38
+    },
+    "chargeback_to_transaction": {
+      "source_rows_with_key": 2723,
+      "matched_rows": 2505,
+      "unmatched_rows": 218,
+      "match_rate_pct": 91.99
+    },
+    "chargeback_to_kyc": {
+      "source_rows_with_key": 2800,
+      "matched_rows": 660,
+      "unmatched_rows": 2140,
+      "match_rate_pct": 23.57
+    },
+    "chargeback_to_merchant": {
+      "source_rows_with_key": 2800,
+      "matched_rows": 1199,
+      "unmatched_rows": 1601,
+      "match_rate_pct": 42.82
+    }
+  }
+}

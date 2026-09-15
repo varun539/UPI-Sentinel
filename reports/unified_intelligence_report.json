@@ -1,0 +1,44 @@
+{
+  "pipeline": {
+    "stage": 8,
+    "name": "Unified Fraud Intelligence"
+  },
+  "rows": {
+    "transactions": 20000,
+    "users": 17878,
+    "merchants": 8051,
+    "investigation_queue": 346,
+    "suspicious_networks": 3109
+  },
+  "risk_distribution": {
+    "transactions": {
+      "LOW": 16531,
+      "MEDIUM": 3469
+    },
+    "users": {
+      "MEDIUM": 14586,
+      "LOW": 2947,
+      "HIGH": 345
+    },
+    "merchants": {
+      "MEDIUM": 5830,
+      "LOW": 2221
+    }
+  },
+  "scoring": {
+    "transaction_weight": 0.4,
+    "user_weight": 0.2,
+    "merchant_weight": 0.15,
+    "ml_anomaly_weight": 0.15,
+    "network_weight": 0.1
+  },
+  "investigation_queue": {
+    "high_priority_entities": 0,
+    "medium_high_priority_entities": 345
+  },
+  "notes": [
+    "Unified scores combine deterministic risk, entity risk, ML anomaly, and network relationship signals.",
+    "Scores are investigation indicators and are not calibrated probabilities.",
+    "Suspicious network candidates indicate patterns requiring investigation, not confirmed fraud."
+  ]
+}

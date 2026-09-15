@@ -1,0 +1,30 @@
+{
+  "graph": {
+    "eligible_transactions": 20000,
+    "unique_user_nodes": 17878,
+    "unique_merchant_nodes": 8051,
+    "total_nodes": 25929,
+    "total_edges": 20000,
+    "connected_components": 5929
+  },
+  "relationships": {
+    "avg_transactions_per_edge": 1.0,
+    "max_transactions_per_edge": 1,
+    "avg_relationship_risk": 27.89,
+    "high_risk_relationships": 1628
+  },
+  "network_risk": {
+    "suspicious_network_candidates": 3109
+  },
+  "risk_band_distribution": {
+    "MEDIUM": 1570,
+    "HIGH": 1530,
+    "LOW": 9
+  },
+  "notes": [
+    "Graph represents User \u2194 Merchant transaction relationships.",
+    "Suspicious networks are investigation candidates, not confirmed fraud.",
+    "The dataset does not provide direct user-to-user payment edges.",
+    "Unmatched reference entities are not automatically treated as fraudulent."
+  ]
+}

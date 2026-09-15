@@ -1,0 +1,54 @@
+[
+  {
+    "dataset": "upi_transactions",
+    "raw_rows": 20400,
+    "clean_rows": 20000,
+    "exact_duplicates_removed": 400,
+    "missing_utr": 1000,
+    "missing_mcc": 2872,
+    "missing_timestamp": 0,
+    "missing_amount": 0,
+    "negative_amount": 420
+  },
+  {
+    "dataset": "kyc_records",
+    "raw_rows": 36400,
+    "clean_rows": 35934,
+    "exact_duplicates_removed": 278,
+    "missing_user_id": 0,
+    "missing_pan": 1876,
+    "invalid_pan_format": 2615,
+    "missing_aadhaar": 2625,
+    "masked_aadhaar": 0,
+    "invalid_aadhaar_format": 6109,
+    "missing_date_of_birth": 3643,
+    "missing_income": 4648,
+    "negative_income": 1440,
+    "missing_signup_timestamp": 2878
+  },
+  {
+    "dataset": "merchants",
+    "raw_rows": 6210,
+    "clean_rows": 6190,
+    "exact_duplicates_removed": 12,
+    "missing_merchant_id": 0,
+    "missing_mcc": 691,
+    "missing_onboarding_date": 499,
+    "missing_settlement_account": 2443,
+    "missing_declared_avg_ticket_size": 370,
+    "negative_declared_avg_ticket_size": 501
+  },
+  {
+    "dataset": "chargebacks",
+    "raw_rows": 2884,
+    "clean_rows": 2800,
+    "exact_duplicates_removed": 84,
+    "missing_complaint_id": 0,
+    "missing_txn_id": 77,
+    "missing_disputed_amount": 179,
+    "negative_disputed_amount": 220,
+    "missing_transaction_timestamp": 230,
+    "missing_reported_timestamp": 203,
+    "missing_bank_response_timestamp": 701
+  }
+]

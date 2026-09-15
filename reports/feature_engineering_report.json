@@ -1,0 +1,32 @@
+{
+  "rows": {
+    "transaction_features": 20000,
+    "user_risk_features": 17878,
+    "merchant_risk_features": 8051
+  },
+  "transaction_risk_distribution": {
+    "LOW": 18025,
+    "MEDIUM": 1975
+  },
+  "user_risk_distribution": {
+    "MEDIUM": 12900,
+    "LOW": 3903,
+    "HIGH": 1073,
+    "CRITICAL": 2
+  },
+  "merchant_risk_distribution": {
+    "LOW": 7367,
+    "MEDIUM": 680,
+    "HIGH": 4
+  },
+  "high_risk_counts": {
+    "transactions": 0,
+    "users": 2,
+    "merchants": 0
+  },
+  "feature_counts": {
+    "transaction_features": 75,
+    "user_features": 41,
+    "merchant_features": 44
+  }
+}

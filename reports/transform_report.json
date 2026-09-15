@@ -1,0 +1,10 @@
+{
+  "input_transactions": 20000,
+  "output_transactions": 20000,
+  "unique_users": 17878,
+  "unique_merchants": 8051,
+  "chargeback_records": 2800,
+  "transaction_kyc_match_rate_pct": 27.96,
+  "transaction_merchant_match_rate_pct": 46.38,
+  "transactions_with_chargeback_pct": 11.82
+}
