@@ -1,5 +1,6 @@
-"use client";
 
+ "use client";
+ 
 import Link from "next/link";
 import { useState } from "react";
 
@@ -858,19 +859,22 @@ function Visualization({
 
 export default function AIInvestigatorPage() {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<AgentResponse | null>(null);
+  const [history, setHistory] = useState<
+    Array<{
+      id: string;
+      result: AgentResponse;
+    }>
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function investigate(customQuery?: string) {
     const question = (customQuery ?? query).trim();
 
-    if (!question) return;
+    if (!question || loading) return;
 
-    setQuery(question);
     setLoading(true);
     setError("");
-    setResult(null);
 
     try {
       const response = await fetch(`${API}/agent/query`, {
@@ -889,7 +893,17 @@ export default function AIInvestigatorPage() {
         );
       }
 
-      setResult(data);
+      const agentResult = data as AgentResponse;
+
+      setHistory((current) => [
+        ...current,
+        {
+          id: `${Date.now()}-${current.length}`,
+          result: agentResult,
+        },
+      ]);
+
+      setQuery("");
     } catch (err) {
       setError(
         err instanceof Error
@@ -908,13 +922,6 @@ export default function AIInvestigatorPage() {
 
     return value.toFixed(2);
   }
-
-  const rows = result?.analysis?.rows ?? [];
-
-  const displayUnit =
-    result?.intent === "network_chargeback_rate"
-      ? "percent"
-      : result?.analysis?.unit || "";
 
   return (
     <main className="app-shell">
@@ -1011,7 +1018,7 @@ export default function AIInvestigatorPage() {
 
             <div className="breadcrumb">
               SENTINEL /{" "}
-              <span>SENTINEL COPILOT</span>
+              <span>SENTINEL AI ANALYST</span>
             </div>
 
             <h1>
@@ -1080,7 +1087,7 @@ export default function AIInvestigatorPage() {
                     investigate();
                   }
                 }}
-                placeholder="Ask about risk, merchants, networks or transactions..."
+                placeholder="Ask another question about risk, merchants, networks or transactions..."
                 disabled={loading}
               />
 
@@ -1325,9 +1332,55 @@ export default function AIInvestigatorPage() {
                 RESULTS
             ================================================= */}
 
-            {result && !loading && (
+            {history.length > 0 && (
+              <div className="conversation-stack">
+                <div className="conversation-header">
+                  <div>
+                    <div className="section-eyebrow">
+                      INVESTIGATION SESSION
+                    </div>
+                    <strong>
+                      {history.length}{" "}
+                      {history.length === 1
+                        ? "analysis"
+                        : "analyses"} in this session
+                    </strong>
+                  </div>
 
-              <div className="agent-results">
+                  <button
+                    type="button"
+                    className="conversation-clear"
+                    onClick={() => setHistory([])}
+                    disabled={loading}
+                  >
+                    Clear session
+                  </button>
+                </div>
+
+                {history.map((entry, historyIndex) => {
+                  const result = entry.result;
+                  const rows = result?.analysis?.rows ?? [];
+
+                  const displayUnit =
+                    result?.intent === "network_chargeback_rate"
+                      ? "percent"
+                      : result?.analysis?.unit || "";
+
+                  return (
+                    <div
+                      className="conversation-entry"
+                      key={entry.id}
+                    >
+                      <div className="conversation-entry-label">
+                        <span>
+                          ANALYSIS {historyIndex + 1}
+                        </span>
+                        <span>
+                          {result.intent.replaceAll("_", " ")}
+                        </span>
+                      </div>
+
+                      <div className="agent-results">
 
                 {/* RESULT HEADER */}
 
@@ -1694,8 +1747,11 @@ export default function AIInvestigatorPage() {
 
                 </div>
 
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
             )}
 
           </div>
@@ -1886,6 +1942,107 @@ export default function AIInvestigatorPage() {
         /* =====================================================
            RESULTS
         ===================================================== */
+
+        .conversation-stack {
+          margin-top: 30px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .conversation-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 14px 16px;
+          border:
+            1px solid rgba(72, 213, 151, 0.12);
+          border-radius: 11px;
+          background:
+            linear-gradient(
+              180deg,
+              rgba(72, 213, 151, 0.035),
+              rgba(255, 255, 255, 0.012)
+            );
+        }
+
+        .conversation-header strong {
+          display: block;
+          margin-top: 4px;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .conversation-clear {
+          flex-shrink: 0;
+          padding: 7px 11px;
+          border:
+            1px solid rgba(255, 255, 255, 0.09);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.025);
+          color: rgba(255, 255, 255, 0.45);
+          font-size: 10px;
+          cursor: pointer;
+          transition:
+            border-color 160ms ease,
+            color 160ms ease,
+            background 160ms ease;
+        }
+
+        .conversation-clear:hover:not(:disabled) {
+          border-color:
+            rgba(72, 213, 151, 0.28);
+          color: #78e3b0;
+          background:
+            rgba(72, 213, 151, 0.04);
+        }
+
+        .conversation-clear:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
+        .conversation-entry {
+          position: relative;
+          padding-top: 4px;
+        }
+
+        .conversation-entry + .conversation-entry {
+          padding-top: 22px;
+          border-top:
+            1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .conversation-entry-label {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 9px;
+          padding: 0 2px;
+        }
+
+        .conversation-entry-label span {
+          font-size: 8px;
+          font-weight: 700;
+          letter-spacing: 0.11em;
+          color: rgba(255, 255, 255, 0.27);
+          text-transform: uppercase;
+        }
+
+        .conversation-entry-label span:last-child {
+          max-width: 60%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-weight: 500;
+          letter-spacing: 0.06em;
+        }
+
+        .conversation-entry .agent-results {
+          margin-top: 0;
+        }
 
         .agent-results {
           margin-top: 30px;
@@ -2602,6 +2759,18 @@ export default function AIInvestigatorPage() {
 
         @media (max-width: 800px) {
 
+          .conversation-header {
+            align-items: flex-start;
+          }
+
+          .conversation-entry-label {
+            align-items: flex-start;
+          }
+
+          .conversation-entry-label span:last-child {
+            max-width: 50%;
+          }
+
           .analysis-meta {
             grid-template-columns:
               repeat(2, 1fr);
@@ -2626,6 +2795,24 @@ export default function AIInvestigatorPage() {
 
 
         @media (max-width: 600px) {
+
+          .conversation-header {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .conversation-clear {
+            align-self: flex-start;
+          }
+
+          .conversation-entry-label {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .conversation-entry-label span:last-child {
+            max-width: 100%;
+          }
 
           .suggestion-grid {
             grid-template-columns: 1fr;

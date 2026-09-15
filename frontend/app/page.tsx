@@ -1,5 +1,5 @@
-"use client";
 
+ "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -97,6 +97,7 @@ export default function Dashboard() {
   const [uploadState, setUploadState] = useState<"idle" | "ready" | "uploading" | "success" | "error">("idle");
   const [uploadMessage, setUploadMessage] = useState("");
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [sourceRows, setSourceRows] = useState<Record<string, number>>({});
 
   async function loadDashboard(showRefresh = false) {
     if (showRefresh) setRefreshing(true);
@@ -129,21 +130,55 @@ export default function Dashboard() {
   const investigationsCount =
     summary.investigation_candidates ?? summary.investigation_queue ?? summary.total_investigations;
 
+  const summarySourceRows = useMemo(() => ({
+    "UPI Transactions": Number(
+      summary.source_rows?.transactions ??
+      summary.rows?.transactions ??
+      summary.transactions ??
+      0
+    ),
+    "KYC Records": Number(
+      summary.source_rows?.kyc ??
+      summary.rows?.kyc ??
+      summary.users ??
+      0
+    ),
+    "Merchant Master": Number(
+      summary.source_rows?.merchants ??
+      summary.rows?.merchants ??
+      summary.merchants ??
+      0
+    ),
+    "Chargebacks": Number(
+      summary.source_rows?.chargebacks ??
+      summary.rows?.chargebacks ??
+      summary.chargebacks ??
+      0
+    ),
+  }), [summary]);
+
   const riskStats = useMemo(() => {
-    const total = Number(transactions) || 20000;
-    return [
-      { label: "LOW", value: 90, count: Math.round(total * 0.90125), cls: "low" },
-      { label: "MEDIUM", value: 9.8, count: Math.round(total * 0.09875), cls: "medium" },
-      { label: "HIGH", value: 0.01, count: 0, cls: "high" },
-      { label: "CRITICAL", value: 0.01, count: 0, cls: "critical" },
-    ];
-  }, [transactions]);
+    const distribution = summary?.risk_distribution?.transactions || {};
+    const bands = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+    const counts = bands.map((band) => Number(distribution[band] || 0));
+    const distributionTotal = counts.reduce((sum, value) => sum + value, 0);
+
+    return bands.map((label, index) => ({
+      label,
+      count: counts[index],
+      value:
+        distributionTotal > 0
+          ? Number(((counts[index] / distributionTotal) * 100).toFixed(2))
+          : 0,
+      cls: label.toLowerCase(),
+    }));
+  }, [summary, transactions]);
 
   const sources = [
-    { name: "UPI Transactions", icon: "↔", rows: "20,000", detail: "Current processed baseline. Upload a new source to replace it." },
-    { name: "KYC Records", icon: "◉", rows: "35,934", detail: "Current processed baseline. Upload a new source to replace it." },
-    { name: "Merchant Master", icon: "▣", rows: "6,190", detail: "Current processed baseline. Upload a new source to replace it." },
-    { name: "Chargebacks", icon: "⚠", rows: "2,800", detail: "Current processed baseline. Upload a new source to replace it." },
+    { name: "UPI Transactions", icon: "↔", detail: "Cleaned, validated and scored through the Sentinel pipeline." },
+    { name: "KYC Records", icon: "◉", detail: "Identity fields validated and canonicalized." },
+    { name: "Merchant Master", icon: "▣", detail: "Merchant identifiers normalized for entity matching." },
+    { name: "Chargebacks", icon: "⚠", detail: "Complaint records validated and linked to transactions." },
   ];
 
   function chooseFile(file?: File) {
@@ -164,39 +199,131 @@ export default function Dashboard() {
 
   async function uploadData() {
     if (!uploadFile) return;
+
     setUploadState("uploading");
-    setUploadMessage("Validating and ingesting file...");
+    setUploadMessage("Uploading source and starting Sentinel intelligence pipeline...");
+
     try {
-      // Try common upload routes without changing the existing pipeline.
       const form = new FormData();
       form.append("file", uploadFile);
+
       const sourceTypeMap: Record<string, string> = {
         "UPI Transactions": "transactions",
         "KYC Records": "kyc",
         "Merchant Master": "merchants",
         "Chargebacks": "chargebacks",
       };
-      form.append("source_type", sourceTypeMap[selectedSource] || "transactions");
-      const res = await fetch(`${API}/upload`, { method: "POST", body: form });
+
+      form.append(
+        "source_type",
+        sourceTypeMap[selectedSource] || "transactions"
+      );
+
+      const res = await fetch(`${API}/upload`, {
+        method: "POST",
+        body: form,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({}));
-        const detail = typeof errorBody?.detail === "string"
-          ? errorBody.detail
-          : "Upload validation failed.";
+        const detail =
+          typeof data?.detail === "string"
+            ? data.detail
+            : data?.detail?.message || "Upload could not be started.";
         throw new Error(detail);
       }
-      const data = await res.json().catch(() => ({}));
+
       setUploadResult(data);
-      setUploadState("success");
-      setUploadMessage(data?.message || "File validated and ready for the cleaning stage.");
-      await loadDashboard(true);
+
+      const jobId = data?.job_id;
+      if (!jobId) {
+        throw new Error("Pipeline job was not created.");
+      }
+
+      // The backend runs the eight existing pipeline stages in a background
+      // job. Poll until the generated intelligence is ready, avoiding long
+      // browser/proxy request timeouts.
+      let completed = false;
+
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        const statusRes = await fetch(
+          `${API}/upload/status/${encodeURIComponent(jobId)}`,
+          { cache: "no-store" }
+        );
+
+        if (!statusRes.ok) {
+          throw new Error("Could not read pipeline status.");
+        }
+
+        const statusData = await statusRes.json();
+
+        if (statusData.status === "running" || statusData.status === "queued") {
+          setUploadMessage(
+            statusData.stage || "Running Sentinel intelligence pipeline..."
+          );
+          continue;
+        }
+
+        if (statusData.status === "failed") {
+          throw new Error(
+            statusData.message ||
+              statusData.error ||
+              "The intelligence pipeline failed."
+          );
+        }
+
+        if (statusData.status === "completed") {
+          completed = true;
+
+          setUploadResult({
+            ...data,
+            ...statusData,
+            status: "completed",
+          });
+
+          setUploadMessage(
+            statusData.message ||
+              "Analysis complete — dashboard intelligence refreshed."
+          );
+
+          if (statusData?.source_rows) {
+            const sourceMap: Record<string, number> = {};
+            if (statusData.source_rows.transactions !== undefined) {
+              sourceMap["UPI Transactions"] = Number(statusData.source_rows.transactions);
+            }
+            if (statusData.source_rows.kyc !== undefined) {
+              sourceMap["KYC Records"] = Number(statusData.source_rows.kyc);
+            }
+            if (statusData.source_rows.merchants !== undefined) {
+              sourceMap["Merchant Master"] = Number(statusData.source_rows.merchants);
+            }
+            if (statusData.source_rows.chargebacks !== undefined) {
+              sourceMap["Chargebacks"] = Number(statusData.source_rows.chargebacks);
+            }
+            setSourceRows((previous) => ({ ...previous, ...sourceMap }));
+          }
+
+          setUploadState("success");
+          await loadDashboard(true);
+          break;
+        }
+      }
+
+      if (!completed) {
+        throw new Error(
+          "The pipeline is taking longer than expected. Refresh the dashboard shortly."
+        );
+      }
     } catch (error) {
       setUploadResult(null);
       setUploadState("error");
       setUploadMessage(
         error instanceof Error
           ? error.message
-          : "Upload validation failed. Existing processed data remains untouched."
+          : "Upload and analysis failed."
       );
     }
   }
@@ -224,7 +351,7 @@ export default function Dashboard() {
         <div className="nav-section">
           <div className="nav-title">INTELLIGENCE</div>
           <button className="nav-item" onClick={() => router.push("/ai-investigator")}>
-            <span className="nav-icon">✦</span><span>Sentinel Copilot</span><span className="ai-badge">AI</span>
+            <span className="nav-icon">✦</span><span>Sentinel AI Analyst</span><span className="ai-badge">AI</span>
           </button>
         </div>
 
@@ -266,7 +393,7 @@ export default function Dashboard() {
           <section className="panel data-rescue-panel">
             <div className="data-rescue-header">
               <div><div className="panel-kicker">DATA RESCUE</div><h2>Governed Data Layer</h2>
-                <p className="data-rescue-description">Bring intelligence into Sentinel, validate its source and prepare it for downstream risk analysis.</p></div>
+                <p className="data-rescue-description">Upload a source and run it through Sentinel's cleaning, validation, ML, graph and unified intelligence pipeline.</p></div>
               <div className="pipeline-ready"><span className="ready-dot" /> PIPELINE READY</div>
             </div>
 
@@ -280,8 +407,22 @@ export default function Dashboard() {
                     setUploadMessage("");
                     setUploadResult(null);
                   }}>
-                  <div className="source-top"><div className="source-icon">{source.icon}</div><span className="source-status">READY</span></div>
-                  <strong>{source.name}</strong><span>{source.rows} baseline records</span><small>{source.detail}</small>
+                  <div className="source-top">
+                    <div className="source-icon">{source.icon}</div>
+                    <span className={`source-status ${selectedSource === source.name ? "selected-status" : ""}`}>
+                      {selectedSource === source.name ? "SELECTED" : "READY"}
+                    </span>
+                  </div>
+                  <strong>{source.name}</strong><span>
+  {formatNumber(
+    sourceRows[source.name] ??
+    summarySourceRows[source.name] ??
+    undefined
+  )} processed records
+</span><small>{source.detail}</small>
+                  <span className="source-upload-label">
+                    {selectedSource === source.name ? "UPLOAD THIS SOURCE →" : "SELECT TO UPLOAD"}
+                  </span>
                 </button>
               ))}
             </div>
@@ -315,23 +456,44 @@ export default function Dashboard() {
                   else fileInput.current?.click();
                 }}
               >
-                {uploadState === "uploading" ? "Validating..." : uploadFile ? "Upload & Analyze" : "Choose File"}
+                {uploadState === "uploading" ? "Analyzing..." : uploadFile ? "Upload & Analyze" : "Choose File"}
               </button>
             </div>
+
+            {uploadState === "uploading" && (
+              <div className="upload-pipeline-status">
+                <span className="pipeline-spinner" />
+                <div>
+                  <strong>Sentinel is analyzing the uploaded source</strong>
+                  <span>Cleaning → Validation → Features → Graph → Anomaly Detection → Unified Intelligence</span>
+                </div>
+              </div>
+            )}
 
             {uploadResult && uploadState === "success" && (
               <div className="upload-result-card">
                 <div className="upload-result-head">
                   <div>
-                    <div className="panel-kicker">INGESTION RESULT</div>
+                    <div className="panel-kicker">INGESTION + ANALYSIS RESULT</div>
                     <strong>{uploadResult.filename || uploadFile?.name || "Uploaded source"}</strong>
                   </div>
-                  <span className="upload-result-status">VALIDATED</span>
+                  <span className="upload-result-status">{uploadState === "success" ? "ANALYZED" : "PROCESSING"}</span>
                 </div>
                 <div className="upload-result-grid">
                   <div><span>RAW ROWS</span><strong>{formatNumber(Number(uploadResult.raw_rows ?? uploadResult.rows))}</strong></div>
                   <div><span>COLUMNS</span><strong>{formatNumber(Number(uploadResult.columns))}</strong></div>
-                  <div><span>DUPLICATES</span><strong>{formatNumber(Number(uploadResult.duplicates ?? uploadResult.exact_duplicates_removed))}</strong></div>
+                  <div>
+                      <span>DUPLICATES</span>
+                      <strong>
+                        {formatNumber(
+                          Number(
+                            typeof uploadResult.duplicates === "number"
+                              ? uploadResult.duplicates
+                              : uploadResult.exact_duplicates_removed ?? 0
+                          )
+                        )}
+                      </strong>
+                    </div>
                   <div><span>SOURCE</span><strong>{uploadResult.source || selectedSource}</strong></div>
                 </div>
                 {uploadResult.missing_fields && Object.keys(uploadResult.missing_fields).length > 0 && (
@@ -346,9 +508,9 @@ export default function Dashboard() {
             )}
 
             <div className="data-rescue-footer">
-              <div className="rescue-stat"><strong>400</strong><span>transaction duplicates removed</span></div>
-              <div className="rescue-stat"><strong>27.96%</strong><span>transaction → KYC match</span></div>
-              <div className="rescue-stat"><strong>46.38%</strong><span>transaction → merchant match</span></div>
+              <div className="rescue-stat"><strong>{formatNumber(Number(summary.cleaning?.transactions?.exact_duplicates_removed ?? 400))}</strong><span>transaction duplicates removed</span></div>
+              <div className="rescue-stat"><strong>{Number(summary.transaction_kyc_match_rate_pct ?? 27.96).toFixed(2)}%</strong><span>transaction → KYC match</span></div>
+              <div className="rescue-stat"><strong>{Number(summary.transaction_merchant_match_rate_pct ?? 46.38).toFixed(2)}%</strong><span>transaction → merchant match</span></div>
               <div className="rescue-flow"><span>CLEAN</span><b>→</b><span>VALIDATE</span><b>→</b><span>ANALYZE</span><b>→</b><span>INVESTIGATE</span></div>
             </div>
           </section>
@@ -415,12 +577,17 @@ export default function Dashboard() {
           <section className="bottom-grid">
             <div className="panel insight-card">
               <div className="insight-icon">⌁</div><div><div className="panel-kicker">NETWORK INTELLIGENCE</div><h3>Suspicious network candidates</h3>
-                <div className="big-number">3,109</div><p>Connected components flagged for investigator review based on shared-merchant relationships and behavioral signals.</p></div>
+                <div className="big-number">{formatNumber(Number(
+  summary.suspicious_networks ??
+  summary.rows?.suspicious_networks ??
+  summary.graph?.suspicious_networks ??
+  0
+))}</div><p>Connected components flagged for investigator review based on shared-merchant relationships and behavioral signals.</p></div>
               <button onClick={() => router.push("/networks")}>Explore networks →</button>
             </div>
             <div className="panel insight-card ai-card"><div className="insight-icon ai-icon">✦</div><div><div className="panel-kicker">SENTINEL COPILOT</div>
               <h3>Ask Sentinel about your data</h3><p>Ask natural-language questions about transactions, risk patterns, merchants, chargebacks and suspicious networks.</p></div>
-              <button onClick={() => router.push("/ai-investigator")}>Open Sentinel Copilot →</button>
+              <button onClick={() => router.push("/ai-investigator")}>Open Sentinel AI Analyst →</button>
             </div>
           </section>
 
@@ -441,6 +608,62 @@ export default function Dashboard() {
           border-color: rgba(72, 213, 151, 0.35);
           background: rgba(72, 213, 151, 0.045);
           box-shadow: inset 0 0 0 1px rgba(72, 213, 151, 0.06);
+        }
+
+        .source-status.selected-status {
+          color: #69dda9;
+          border-color: rgba(72, 213, 151, 0.24);
+          background: rgba(72, 213, 151, 0.08);
+        }
+
+        .source-upload-label {
+          display: inline-block;
+          margin-top: 8px;
+          color: rgba(105, 221, 169, 0.62);
+          font-size: 7px;
+          font-weight: 800;
+          letter-spacing: .09em;
+        }
+
+        .upload-pipeline-status {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 10px;
+          padding: 10px 12px;
+          border: 1px solid rgba(72, 213, 151, 0.13);
+          border-radius: 9px;
+          background: rgba(72, 213, 151, 0.025);
+        }
+
+        .upload-pipeline-status > div {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .upload-pipeline-status strong {
+          color: rgba(255,255,255,0.68);
+          font-size: 9px;
+        }
+
+        .upload-pipeline-status span:not(.pipeline-spinner) {
+          color: rgba(255,255,255,0.3);
+          font-size: 8px;
+        }
+
+        .pipeline-spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(72, 213, 151, 0.16);
+          border-top-color: #69dda9;
+          border-radius: 50%;
+          animation: sentinel-spin .8s linear infinite;
+          flex: 0 0 auto;
+        }
+
+        @keyframes sentinel-spin {
+          to { transform: rotate(360deg); }
         }
 
         .upload-zone {

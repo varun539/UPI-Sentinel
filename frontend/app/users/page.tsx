@@ -7,10 +7,23 @@ const API = "/api/backend";
 
 type User = {
   user_id?: string;
+
+  // Stage 08 / unified intelligence fields
+  unified_user_risk_score?: number;
+  unified_user_risk_band?: string;
+  network_transaction_count?: number;
+  network_chargeback_count?: number;
+  network_chargeback_rate?: number;
+  total_amount?: number;
+  transaction_volume?: number;
+  volume?: number;
+
+  // Backward-compatible aliases
   risk_score?: number;
   risk_band?: string;
   transaction_count?: number;
   chargeback_count?: number;
+
   [key: string]: any;
 };
 
@@ -25,15 +38,57 @@ const navMonitoring = [
 
 function riskClass(band?: string) {
   const value = String(band || "").toUpperCase();
+
   if (value === "CRITICAL") return "risk-critical";
   if (value === "HIGH") return "risk-high";
   if (value === "MEDIUM") return "risk-medium";
-  return "risk-low";
+  if (value === "LOW") return "risk-low";
+
+  return "risk-unknown";
 }
 
 function riskNumber(row: User) {
-  const value = Number(row.risk_score);
+  const value = Number(
+    row.unified_user_risk_score ?? row.risk_score
+  );
+
   return Number.isFinite(value) ? value : 0;
+}
+
+function userBand(row: User) {
+  const explicit = String(
+    row.unified_user_risk_band ?? row.risk_band ?? ""
+  ).toUpperCase();
+
+  if (["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(explicit)) {
+    return explicit;
+  }
+
+  const rawScore = row.unified_user_risk_score ?? row.risk_score;
+  const score = Number(rawScore);
+
+  if (!Number.isFinite(score)) return "UNKNOWN";
+  if (score > 75) return "CRITICAL";
+  if (score > 50) return "HIGH";
+  if (score > 25) return "MEDIUM";
+
+  return "LOW";
+}
+
+function userTransactions(row: User) {
+  return Number(
+    row.network_transaction_count ??
+    row.transaction_count ??
+    0
+  );
+}
+
+function userChargebacks(row: User) {
+  return Number(
+    row.network_chargeback_count ??
+    row.chargeback_count ??
+    0
+  );
 }
 
 export default function UsersPage() {
@@ -83,14 +138,14 @@ export default function UsersPage() {
           !query || String(row.user_id || "").toLowerCase().includes(query);
         const matchesRisk =
           riskFilter === "ALL" ||
-          String(row.risk_band || "").toUpperCase() === riskFilter;
+          userBand(row) === riskFilter;
         return matchesSearch && matchesRisk;
       })
       .sort((a, b) => {
         if (sort === "txns")
-          return Number(b.transaction_count || 0) - Number(a.transaction_count || 0);
+          return userTransactions(b) - userTransactions(a);
         if (sort === "chargebacks")
-          return Number(b.chargeback_count || 0) - Number(a.chargeback_count || 0);
+          return userChargebacks(b) - userChargebacks(a);
         return riskNumber(b) - riskNumber(a);
       });
   }, [rows, search, riskFilter, sort]);
@@ -99,15 +154,18 @@ export default function UsersPage() {
 
   const summary = useMemo(() => {
     const high = rows.filter((r) =>
-      ["HIGH", "CRITICAL"].includes(String(r.risk_band || "").toUpperCase())
+      ["HIGH", "CRITICAL"].includes(userBand(r))
     ).length;
+
     const medium = rows.filter(
-      (r) => String(r.risk_band || "").toUpperCase() === "MEDIUM"
+      (r) => userBand(r) === "MEDIUM"
     ).length;
+
     const chargebacks = rows.reduce(
-      (sum, r) => sum + Number(r.chargeback_count || 0),
+      (sum, r) => sum + userChargebacks(r),
       0
     );
+
     return {
       high: serverSummary.highCritical ?? high,
       medium: serverSummary.medium ?? medium,
@@ -260,8 +318,8 @@ export default function UsersPage() {
               </div>
             ) : (
               <>
-                <div className="user-table user-table-fixed">
-                  <div className="user-table-header">
+                <div className="data-table user-table">
+                  <div className="data-row data-header">
                     <span>USER</span>
                     <span>RISK SCORE</span>
                     <span>BAND</span>
@@ -270,11 +328,14 @@ export default function UsersPage() {
                   </div>
 
                   {visibleRows.map((row, i) => {
-                    const band = String(row.risk_band || "UNKNOWN").toUpperCase();
-                    const score = row.risk_score;
+                    const band = userBand(row);
+                    const score = riskNumber(row);
+                    const transactions = userTransactions(row);
+                    const chargebacks = userChargebacks(row);
+
                     return (
                       <button
-                        className="user-table-row"
+                        className="data-row user-row"
                         key={row.user_id || i}
                         onClick={() => setSelected(row)}
                       >
@@ -284,17 +345,29 @@ export default function UsersPage() {
                           </span>
                           <span className="mono">{row.user_id || "—"}</span>
                         </span>
+
                         <span className="risk-score-cell">
                           <span className="risk-bar">
-                            <span style={{ width: `${Math.min(100, Math.max(0, Number(score) || 0))}%` }} />
+                            <span
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  Math.max(0, score)
+                                )}%`,
+                              }}
+                            />
                           </span>
-                          <strong>{score ?? "—"}</strong>
+                          <strong>{score.toFixed(2)}</strong>
                         </span>
+
                         <span>
-                          <span className={`status-pill ${riskClass(band)}`}>{band}</span>
+                          <span className={`status-pill ${riskClass(band)}`}>
+                            {band}
+                          </span>
                         </span>
-                        <span>{row.transaction_count ?? "—"}</span>
-                        <span>{row.chargeback_count ?? "—"}</span>
+
+                        <span>{transactions.toLocaleString("en-IN")}</span>
+                        <span>{chargebacks.toLocaleString("en-IN")}</span>
                       </button>
                     );
                   })}
@@ -321,13 +394,13 @@ export default function UsersPage() {
 
             <div className="drawer-kicker">USER INVESTIGATION</div>
             <div className="drawer-user-heading">
-              <div className={`drawer-avatar ${riskClass(selected.risk_band)}`}>
+              <div className={`drawer-avatar ${riskClass(userBand(selected))}`}>
                 {String(selected.user_id || "U").slice(-2)}
               </div>
               <div>
                 <h2>{selected.user_id || "Unknown User"}</h2>
-                <span className={`status-pill ${riskClass(selected.risk_band)}`}>
-                  {String(selected.risk_band || "UNKNOWN").toUpperCase()}
+                <span className={`status-pill ${riskClass(userBand(selected))}`}>
+                  {userBand(selected)}
                 </span>
               </div>
             </div>
@@ -335,19 +408,23 @@ export default function UsersPage() {
             <div className="drawer-risk">
               <div>
                 <span>RISK SCORE</span>
-                <strong>{selected.risk_score ?? "—"}</strong>
+                <strong>
+                  {Number.isFinite(riskNumber(selected))
+                    ? riskNumber(selected).toFixed(2)
+                    : "—"}
+                </strong>
               </div>
               <div className="drawer-risk-meter">
-                <span style={{ width: `${Math.min(100, Math.max(0, Number(selected.risk_score) || 0))}%` }} />
+                <span style={{ width: `${Math.min(100, Math.max(0, riskNumber(selected)))}%` }} />
               </div>
             </div>
 
             <div className="drawer-metrics">
-              <div><span>TRANSACTIONS</span><strong>{selected.transaction_count ?? "—"}</strong></div>
-              <div><span>CHARGEBACKS</span><strong>{selected.chargeback_count ?? "—"}</strong></div>
+              <div><span>TRANSACTIONS</span><strong>{userTransactions(selected).toLocaleString("en-IN")}</strong></div>
+              <div><span>CHARGEBACKS</span><strong>{userChargebacks(selected).toLocaleString("en-IN")}</strong></div>
               <div><span>CB RATE</span><strong>
-                {Number(selected.transaction_count) > 0
-                  ? `${((Number(selected.chargeback_count || 0) / Number(selected.transaction_count)) * 100).toFixed(1)}%`
+                {userTransactions(selected) > 0
+                  ? `${((userChargebacks(selected) / userTransactions(selected)) * 100).toFixed(1)}%`
                   : "—"}
               </strong></div>
               <div><span>ENTITY</span><strong>USER</strong></div>
@@ -370,128 +447,6 @@ export default function UsersPage() {
           </aside>
         </div>
       )}
-        <style jsx>{`
-          .user-table-fixed {
-            width: 100%;
-            min-width: 0;
-            overflow-x: auto;
-            border: 1px solid rgba(148, 163, 184, 0.12);
-            border-radius: 14px;
-            background: rgba(8, 12, 18, 0.55);
-          }
-
-          .user-table-header,
-          .user-table-row {
-            display: grid;
-            grid-template-columns: minmax(190px, 1.55fr) minmax(150px, 1.15fr) minmax(110px, .8fr) minmax(90px, .65fr) minmax(120px, .85fr);
-            align-items: center;
-            column-gap: 18px;
-            width: 100%;
-            min-width: 780px;
-            box-sizing: border-box;
-          }
-
-          .user-table-header {
-            min-height: 48px;
-            padding: 0 20px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-            color: #718096;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-          }
-
-          .user-table-row {
-            min-height: 72px;
-            padding: 12px 20px;
-            border: 0;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.09);
-            background: transparent;
-            color: inherit;
-            text-align: left;
-            cursor: pointer;
-            font: inherit;
-            transition: background .18s ease;
-          }
-
-          .user-table-row:last-child { border-bottom: 0; }
-          .user-table-row:hover { background: rgba(74, 222, 128, 0.055); }
-
-          .user-table-row:focus-visible {
-            outline: 2px solid rgba(74, 222, 128, .65);
-            outline-offset: -2px;
-          }
-
-          .user-table-row > span {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .user-table-row .user-id-cell {
-            display: flex;
-            align-items: center;
-            gap: 11px;
-            min-width: 0;
-          }
-
-          .user-table-row .user-id-cell .mono {
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          .user-table-row .risk-score-cell {
-            display: grid;
-            grid-template-columns: minmax(65px, 1fr) auto;
-            align-items: center;
-            gap: 10px;
-            min-width: 0;
-          }
-
-          .user-table-row .risk-bar {
-            display: block;
-            width: 100%;
-            height: 5px;
-            overflow: hidden;
-            border-radius: 999px;
-            background: rgba(148, 163, 184, .13);
-          }
-
-          .user-table-row .risk-bar > span {
-            display: block;
-            height: 100%;
-            border-radius: inherit;
-            background: currentColor;
-            opacity: .9;
-          }
-
-          .user-table-row .risk-score-cell strong {
-            min-width: 36px;
-            text-align: right;
-            color: #d7dee8;
-            font-size: 12px;
-          }
-
-          .user-table-row .status-pill {
-            display: inline-flex;
-            width: fit-content;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-          }
-
-          .user-table-row .mono {
-            font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-            font-size: 12px;
-          }
-
-          @media (max-width: 900px) {
-            .user-table-fixed { overflow-x: auto; }
-          }
-        `}</style>
-
     </main>
   );
 }

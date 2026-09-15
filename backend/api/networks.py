@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
+
 BASE_DIR = Path(__file__).resolve().parents[2]
+
 PROCESSED_DIR = (
     BASE_DIR
     / "data"
@@ -15,7 +17,6 @@ PROCESSED_DIR = (
 
 
 def load_csv(filename):
-
     path = PROCESSED_DIR / filename
 
     if not path.exists():
@@ -27,19 +28,55 @@ def load_csv(filename):
     return pd.read_csv(path)
 
 
+def records(df):
+    """
+    Convert dataframe rows into JSON-safe dictionaries.
+
+    Pandas NaN values are converted to Python None so that
+    FastAPI can serialize the response as valid JSON.
+    """
+
+    safe_df = (
+        df.astype(object)
+        .where(pd.notnull(df), None)
+    )
+
+    return safe_df.to_dict(
+        orient="records"
+    )
+
+
 @router.get("")
 def get_networks(
     limit: int = Query(
-        50,
+        250,
         ge=1,
         le=500,
     ),
+    risk_band: str | None = None,
 ):
-
     df = load_csv(
         "suspicious_networks.csv"
     )
 
+    # Filter the complete candidate dataset first.
+    # This ensures Medium/Low networks are available
+    # instead of only filtering the top overall networks.
+    if risk_band:
+        if "risk_band" not in df.columns:
+            raise HTTPException(
+                status_code=500,
+                detail="risk_band column missing.",
+            )
+
+        df = df[
+            df["risk_band"]
+            .astype(str)
+            .str.upper()
+            == risk_band.upper()
+        ]
+
+    # Highest-risk networks first.
     if "network_risk_score" in df.columns:
         df = df.sort_values(
             "network_risk_score",
@@ -50,15 +87,7 @@ def get_networks(
 
     return {
         "count": len(df),
-        "networks": (
-            df.where(
-                pd.notnull(df),
-                None,
-            )
-            .to_dict(
-                orient="records"
-            )
-        ),
+        "networks": records(df),
     }
 
 
@@ -70,7 +99,6 @@ def get_graph(
         le=20000,
     ),
 ):
-
     edges = load_csv(
         "fraud_graph_edges.csv"
     )
@@ -82,24 +110,8 @@ def get_graph(
     edges = edges.head(limit)
 
     return {
-        "nodes": (
-            nodes.where(
-                pd.notnull(nodes),
-                None,
-            )
-            .to_dict(
-                orient="records"
-            )
-        ),
-        "edges": (
-            edges.where(
-                pd.notnull(edges),
-                None,
-            )
-            .to_dict(
-                orient="records"
-            )
-        ),
+        "nodes": records(nodes),
+        "edges": records(edges),
     }
 
 
@@ -107,7 +119,6 @@ def get_graph(
 def get_network(
     component_id: int
 ):
-
     df = load_csv(
         "suspicious_networks.csv"
     )
@@ -135,15 +146,6 @@ def get_network(
             ),
         )
 
-    return (
+    return records(
         matches.head(1)
-        .where(
-            pd.notnull(
-                matches.head(1)
-            ),
-            None,
-        )
-        .to_dict(
-            orient="records"
-        )[0]
-    )
+    )[0]

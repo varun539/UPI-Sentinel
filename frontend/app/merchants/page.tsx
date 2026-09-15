@@ -8,10 +8,23 @@ const API = "/api/backend";
 type Merchant = {
   merchant_id?: string;
   merchant_name?: string;
+
+  // Stage 08 / unified intelligence fields
+  unified_merchant_risk_score?: number;
+  unified_merchant_risk_band?: string;
+  network_transaction_count?: number;
+  network_chargeback_count?: number;
+  network_chargeback_rate?: number;
+  total_amount?: number;
+  transaction_volume?: number;
+  volume?: number;
+
+  // Backward-compatible aliases, if an older API response is returned
   risk_score?: number;
   risk_band?: string;
   transaction_count?: number;
   chargeback_count?: number;
+
   [key: string]: any;
 };
 
@@ -29,12 +42,45 @@ function riskClass(band?: string) {
   if (value === "CRITICAL") return "risk-critical";
   if (value === "HIGH") return "risk-high";
   if (value === "MEDIUM") return "risk-medium";
-  return "risk-low";
+  if (value === "LOW") return "risk-low";
+  return "risk-unknown";
 }
 
 function riskNumber(row: Merchant) {
-  const value = Number(row.risk_score);
+  const value = Number(
+    row.unified_merchant_risk_score ?? row.risk_score
+  );
   return Number.isFinite(value) ? value : 0;
+}
+
+function merchantBand(row: Merchant) {
+  const explicit = String(
+    row.unified_merchant_risk_band ?? row.risk_band ?? ""
+  ).toUpperCase();
+
+  if (["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(explicit)) {
+    return explicit;
+  }
+
+  // Fallback only when the API does not provide the band.
+  const score = riskNumber(row);
+  if (score > 75) return "CRITICAL";
+  if (score > 50) return "HIGH";
+  if (score > 25) return "MEDIUM";
+  if (Number.isFinite(score)) return "LOW";
+  return "UNKNOWN";
+}
+
+function merchantTransactions(row: Merchant) {
+  return Number(
+    row.network_transaction_count ?? row.transaction_count ?? 0
+  );
+}
+
+function merchantChargebacks(row: Merchant) {
+  return Number(
+    row.network_chargeback_count ?? row.chargeback_count ?? 0
+  );
 }
 
 export default function MerchantsPage() {
@@ -67,22 +113,22 @@ export default function MerchantsPage() {
         const searchable = [
           row.merchant_id,
           row.merchant_name,
-          row.risk_band,
+          merchantBand(row),
         ].join(" ").toLowerCase();
 
         const matchesSearch = !query || searchable.includes(query);
         const matchesRisk =
           riskFilter === "ALL" ||
-          String(row.risk_band || "").toUpperCase() === riskFilter;
+          merchantBand(row) === riskFilter;
 
         return matchesSearch && matchesRisk;
       })
       .sort((a, b) => {
         if (sort === "txns") {
-          return Number(b.transaction_count || 0) - Number(a.transaction_count || 0);
+          return merchantTransactions(b) - merchantTransactions(a);
         }
         if (sort === "chargebacks") {
-          return Number(b.chargeback_count || 0) - Number(a.chargeback_count || 0);
+          return merchantChargebacks(b) - merchantChargebacks(a);
         }
         return riskNumber(b) - riskNumber(a);
       });
@@ -92,16 +138,16 @@ export default function MerchantsPage() {
 
   const summary = useMemo(() => {
     const high = rows.filter((r) =>
-      ["HIGH", "CRITICAL"].includes(String(r.risk_band || "").toUpperCase())
+      ["HIGH", "CRITICAL"].includes(merchantBand(r))
     ).length;
 
     const chargebacks = rows.reduce(
-      (sum, r) => sum + Number(r.chargeback_count || 0),
+      (sum, r) => sum + merchantChargebacks(r),
       0
     );
 
     const transactions = rows.reduce(
-      (sum, r) => sum + Number(r.transaction_count || 0),
+      (sum, r) => sum + merchantTransactions(r),
       0
     );
 
@@ -208,6 +254,9 @@ export default function MerchantsPage() {
                 <p className="card-description">
                   Search, prioritize and inspect merchant-level risk signals.
                 </p>
+                <div className="merchant-data-source">
+                  STAGE 08 · UNIFIED MERCHANT INTELLIGENCE
+                </div>
               </div>
               <div className="record-count">
                 {filteredRows.length.toLocaleString()} MATCHED
@@ -275,8 +324,10 @@ export default function MerchantsPage() {
                   </div>
 
                   {visibleRows.map((row, i) => {
-                    const band = String(row.risk_band || "UNKNOWN").toUpperCase();
+                    const band = merchantBand(row);
                     const score = riskNumber(row);
+                    const transactions = merchantTransactions(row);
+                    const chargebacks = merchantChargebacks(row);
 
                     return (
                       <button
@@ -297,15 +348,15 @@ export default function MerchantsPage() {
                           <span className="merchant-risk-bar">
                             <span style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
                           </span>
-                          <strong>{row.risk_score ?? "—"}</strong>
+                          <strong>{Number.isFinite(score) ? score.toFixed(2) : "—"}</strong>
                         </span>
 
                         <span>
                           <span className={`status-pill ${riskClass(band)}`}>{band}</span>
                         </span>
 
-                        <span>{row.transaction_count ?? "—"}</span>
-                        <span>{row.chargeback_count ?? "—"}</span>
+                        <span>{transactions.toLocaleString("en-IN")}</span>
+                        <span>{chargebacks.toLocaleString("en-IN")}</span>
                       </button>
                     );
                   })}
@@ -333,11 +384,11 @@ export default function MerchantsPage() {
             <div className="drawer-kicker">MERCHANT INVESTIGATION</div>
 
             <div className="drawer-user-heading">
-              <div className={`drawer-avatar ${riskClass(selected.risk_band)}`}>▣</div>
+              <div className={`drawer-avatar ${riskClass(merchantBand(selected))}`}>▣</div>
               <div>
                 <h2>{selected.merchant_id || "Unknown Merchant"}</h2>
-                <span className={`status-pill ${riskClass(selected.risk_band)}`}>
-                  {String(selected.risk_band || "UNKNOWN").toUpperCase()}
+                <span className={`status-pill ${riskClass(merchantBand(selected))}`}>
+                  {merchantBand(selected)}
                 </span>
               </div>
             </div>
@@ -345,10 +396,14 @@ export default function MerchantsPage() {
             <div className="drawer-risk">
               <div>
                 <span>RISK SCORE</span>
-                <strong>{selected.risk_score ?? "—"}</strong>
+                <strong>
+                  {Number.isFinite(riskNumber(selected))
+                    ? riskNumber(selected).toFixed(2)
+                    : "—"}
+                </strong>
               </div>
               <div className="drawer-risk-meter">
-                <span style={{ width: `${Math.min(100, Math.max(0, Number(selected.risk_score) || 0))}%` }} />
+                <span style={{ width: `${Math.min(100, Math.max(0, riskNumber(selected)))}%` }} />
               </div>
             </div>
 
@@ -360,17 +415,17 @@ export default function MerchantsPage() {
             <div className="drawer-metrics">
               <div>
                 <span>TRANSACTIONS</span>
-                <strong>{selected.transaction_count ?? "—"}</strong>
+                <strong>{merchantTransactions(selected).toLocaleString("en-IN")}</strong>
               </div>
               <div>
                 <span>CHARGEBACKS</span>
-                <strong>{selected.chargeback_count ?? "—"}</strong>
+                <strong>{merchantChargebacks(selected).toLocaleString("en-IN")}</strong>
               </div>
               <div>
                 <span>CB RATE</span>
                 <strong>
-                  {Number(selected.transaction_count) > 0
-                    ? `${((Number(selected.chargeback_count || 0) / Number(selected.transaction_count)) * 100).toFixed(1)}%`
+                  {merchantTransactions(selected) > 0
+                    ? `${((merchantChargebacks(selected) / merchantTransactions(selected)) * 100).toFixed(1)}%`
                     : "—"}
                 </strong>
               </div>
@@ -532,11 +587,25 @@ export default function MerchantsPage() {
           font-size: 12px;
         }
 
+        .merchant-data-source {
+          margin-top: 8px;
+          color: #657384;
+          font-size: 8px;
+          font-weight: 800;
+          letter-spacing: .12em;
+        }
+
         .merchant-profile-name strong {
           display: block;
           margin-top: 8px;
           color: #d7dee8;
           font-size: 16px;
+        }
+
+        :global(.risk-unknown) {
+          color: #94a3b8;
+          border-color: rgba(148, 163, 184, .22);
+          background: rgba(148, 163, 184, .06);
         }
 
         @media (max-width: 900px) {
